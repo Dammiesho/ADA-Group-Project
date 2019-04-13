@@ -1,0 +1,336 @@
+---
+title: "Final Project"
+output: html_notebook
+---
+
+```{r}
+# PROLOG   ####################################################################'
+
+
+# PROJECT: FINAL PROJECT
+# PURPOSE: SURVIVAL ANALYSIS_COX REGRESSION ANALYSIS
+# DIR:     C:\Users\jamie\Desktop\4th and FINAL Semester\Advanced Data Analysis\
+#          Homework
+# DATA:    BRCA_SEER_SURV.xlsx
+# AUTHORS:  RUTH KATUMBA, VIANCA CUEVAS SOULETTE AND DAMILOLA SHOBIYE.
+# CREATED: 04/10/19
+# LATEST:  04/12/19
+# NOTES:   for Advanced Data Analysis class 
+
+
+# PROLOG  ######################################################################
+```
+
+
+```{r}
+library(foreign) #for reading spss (read.spss()), stata (read.dta()) and xpt (read.xport()) files
+library(haven) #for reading SPSS (read_sav()), stata (read_dta()), SAS(read_sas()) and xpt (read_xpt()) files
+library(readr) #for reading csv file (read_csv())
+library(knitr) #for creating nicer tables
+library(plyr)
+library(ggplot2)
+library(tidyverse)
+library(car)
+library(DescTools)
+library(lmtest) #for LR test
+library(VIM) 
+library(mice) 
+library(lattice)
+```
+
+```{r}
+FinalProject_csv <- read_csv("https://raw.githubusercontent.com/Dammiesho/ADA-Group-Project/master/Variable_Interest3_YRBS_17%20FINAL.csv?token=AsWE9lBfd3CuneaeX92DQUPKGV6JgOTZks5csVPzwA%3D%3D")
+```
+
+# DATA MANAGEMENT
+```{r}
+names(FinalProject_csv)<-c("age", "sex", "grade_level", "race", "cig_use", "vap_yn", "vap_cat", "bingedrink", "mari_use", "coke_use", "heroin_use", "meth_use", "ecstasy", "gender", "grades") #renames variables in order of appearance
+kable(summary(FinalProject_csv)) #creates 'nice' looking table of summary stats for each variable. Alternatively, use varlist<-colnames (C1Survey_csv)
+```
+
+```{r}
+# Classify categorical variables as factor variables
+FinalProject_csv$age<-as.factor(as.character(FinalProject_csv$age))
+FinalProject_csv$sex<-as.factor(as.character(FinalProject_csv$sex))
+FinalProject_csv$grade_level<-as.factor(as.character(FinalProject_csv$grade_level))
+FinalProject_csv$race<-as.factor(as.character(FinalProject_csv$race))
+FinalProject_csv$cig_use<-as.factor(as.character(FinalProject_csv$cig_use))
+FinalProject_csv$vap_yn<-as.factor(as.character(FinalProject_csv$vap_yn))
+FinalProject_csv$vap_cat<-as.factor(as.character(FinalProject_csv$vap_cat))
+FinalProject_csv$bingedrink<-as.factor(as.character(FinalProject_csv$bingedrink))
+FinalProject_csv$mari_use<-as.factor(as.character(FinalProject_csv$mari_use))
+FinalProject_csv$coke_use<-as.factor(as.character(FinalProject_csv$coke_use))
+FinalProject_csv$heroin_use<-as.factor(as.character(FinalProject_csv$heroin_use))
+FinalProject_csv$meth_use<-as.factor(as.character(FinalProject_csv$meth_use))
+FinalProject_csv$ecstasy<-as.factor(as.character(FinalProject_csv$ecstasy))
+FinalProject_csv$gender<-as.factor(as.character(FinalProject_csv$gender))
+FinalProject_csv$grades<-as.factor(as.character(FinalProject_csv$grades))
+
+# Check that you have the right number of factor variables
+table(sapply(FinalProject_csv, class))
+
+# Check one variable to comfirm missing data
+table(FinalProject_csv$age)
+```
+
+```{r}
+# Rename categories within variables
+table(FinalProject_csv$age)
+FinalProject_csv$agef<-factor(FinalProject_csv$age, levels = c(1,2,3), labels = c("12 years old or younger", "13 to 17 year-olds", "18 years old or older"))
+table(FinalProject_csv$agef)
+
+table(FinalProject_csv$sex)
+FinalProject_csv$sexf<-factor(FinalProject_csv$sex, levels = c(1,2), labels = c("Female", "Male"))
+table(FinalProject_csv$sexf)
+
+table(FinalProject_csv$grade_level)
+FinalProject_csv$grade_levelf<-factor(FinalProject_csv$grade_level, levels = c(1,2,3,4,5), labels = c("9th grade", "10th grade", "11th grade", "12th grade", "Unknown"))
+table(FinalProject_csv$grade_levelf)
+
+# Recode race into 3 categories then continue renaming
+FinalProject_csv$race[FinalProject_csv$race <= 1] <- 1 
+FinalProject_csv$race[FinalProject_csv$race <= 3] <- 2
+FinalProject_csv$race[FinalProject_csv$race <= 2 | FinalProject_csv$race <= 4 | FinalProject_csv$race <= 5 | FinalProject_csv$race <= 2 | FinalProject_csv$race <= "F" | FinalProject_csv$race <= "1F" | FinalProject_csv$race <= "5 F" | FinalProject_csv$race <= "1 G" | FinalProject_csv$race <= "H" | FinalProject_csv$race <= "2  H"] <- 3 
+
+table(FinalProject_csv$race)
+FinalProject_csv$racef<-factor(FinalProject_csv$race, levels = c(1,2,3), labels = c("White", "Black or African American", "Other races"))
+table(FinalProject_csv$racef)
+
+table(FinalProject_csv$cig_use)
+FinalProject_csv$cig_usef<-factor(FinalProject_csv$race, levels = c(1,2,3), labels = c("Non-smoker", "Non-daily/Intermittent smoker", "Daily smoker" ))
+table(FinalProject_csv$cig_usef)
+
+table(FinalProject_csv$vap_yn)
+FinalProject_csv$vap_ynf<-factor(FinalProject_csv$vap_yn, levels = c(0,1), labels = c("No", "Yes"))
+table(FinalProject_csv$vap_ynf)
+
+table(FinalProject_csv$bingedrink)
+FinalProject_csv$bingedrinkf<-factor(FinalProject_csv$race, levels = c(1,2,3), labels = c("Non-binge drinker", "Intermittent binge drinker", "Regular binge drinker"))
+table(FinalProject_csv$bingedrinkf)
+
+table(FinalProject_csv$mari_use)
+FinalProject_csv$mari_usef<-factor(FinalProject_csv$mari_use, levels = c(1,2,3,4), labels = c("No marijuana use", "Light marijuana use", "Regular marijuana use", "Chronic marijuana use" ))
+table(FinalProject_csv$mari_usef)
+
+table(FinalProject_csv$coke_use)
+FinalProject_csv$coke_usef<-factor(FinalProject_csv$coke_use, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$coke_usef)
+
+table(FinalProject_csv$heroin_use)
+FinalProject_csv$heroin_usef<-factor(FinalProject_csv$heroin_use, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$heroin_usef)
+
+table(FinalProject_csv$meth_use)
+FinalProject_csv$meth_usef<-factor(FinalProject_csv$meth_use, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$meth_usef)
+
+table(FinalProject_csv$ecstasy)
+FinalProject_csv$ecstasyf<-factor(FinalProject_csv$ecstasy, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$ecstasyf)
+
+table(FinalProject_csv$gender)
+FinalProject_csv$genderf<-factor(FinalProject_csv$gender, levels = c(1,2,3,4), labels = c("Heterosexual", "Gay or Lesbian", "Bisexual", "Not sure"))
+table(FinalProject_csv$genderf)
+
+# Recode grades into 4 categories
+FinalProject_csv$grades[FinalProject_csv$grades <= 1] <- 1 
+FinalProject_csv$grades[FinalProject_csv$grades <= 2] <- 2
+FinalProject_csv$grades[FinalProject_csv$grades <= 3] <- 3
+FinalProject_csv$grades[FinalProject_csv$grades <= 4 | FinalProject_csv$grades <= 5 | FinalProject_csv$grades <= 6 | FinalProject_csv$grades <= 7 ] <- 4 
+
+table(FinalProject_csv$grades)
+FinalProject_csv$gradesf<-factor(FinalProject_csv$grades, levels = c(1,2,3,4), labels = c("Mostly A's", "Mostly B's", "Mostly C's", "Other grades"))
+table(FinalProject_csv$gradesf)
+```
+
+## Handling Missing Data:Data Imputation
+```{r}
+# Data Imputation
+imp<-mice(FinalProject_csv, m=5, seed = 1000) #m = number of imputations, 5 is the default. If you don't include the m argument, 5 imputations will be done.
+
+##look at imputation details. 
+imp
+```
+
+## Diagnostics for imputation model: Are the imputed values plausible? 
+```{r}
+#check age
+imp$imp$age #imp$imp refers to dataframe and list called imp within dataframe that has 15 items 
+#check sex
+imp$imp$sex
+#check grade_level
+imp$imp$grade_level
+#check race
+imp$imp$race
+#check cig-use
+imp$imp$cig_use 
+#check vap_yn
+imp$imp$vap_yn
+#check vap_cat
+imp$imp$vap_cat
+#check bingedrink
+imp$imp$bingedrink
+#check mari_use
+imp$imp$mari_use 
+#check coke_use
+imp$imp$coke_use
+#check heroin_use
+imp$imp$heroin_use
+#check meth_use
+imp$imp$meth_use
+#check ecstasy
+imp$imp$ecstasy 
+#check gender
+imp$imp$gender
+#check grades
+imp$imp$grades
+#the rows contain the imputed values and the columns are the multiple imputations
+```
+
+## Obtain the first and second complete datasets for review
+```{r}
+complete(imp)
+complete(imp,2)
+```
+
+
+#### START HERE _VIANCA <- I just added some of the code I thought you'd need to edit. it is NOT exhaustive.
+NOTE: REMEMBER TO JUST RUN UNIVARIATE ANALYSIS FOR CONFOUNDERS FOUND IN DAG!
+
+## Analysis of imputed data using a linear regression model
+```{r}
+fit <-with(imp, l(chl~age +bmi)) #get regression coefficients
+pool(fit) #pool regression coefficients and standard errors
+summary(pool(fit)) #get summary 
+
+#calculate and print ORs and 95% CIs  
+ORmodel<-exp(cbind(OR = coef(age_catsexbmiLogit), confint(age_catsexbmiLogit))) 
+#calculate ORs and 95% CIs
+  ORmodel #print ORs and 95% CIs
+
+library(odds.n.ends)
+odds.n.ends(age_catsexbmiLogit) 
+```
+
+##How does the imputed data compare to the non-imputed data analysis? _Didn't add code for the comparison, just the individual modelS. Use LR-test
+
+# Non-imputed dataset (complete case)
+
+```{r}
+#Complete case analysis exclusions of missing/refused data
+myvars<-c("rowID", "X_AGE80", "age_cat", "sex", "bmi", "seatbelt_binary")
+BRFSS_ex<-BRFSS[myvars]
+BRFSS_ex<-na.omit(BRFSS_ex)
+BRFSS_ex<-BRFSS_ex[which(BRFSS_ex$sex!="Refused"),]
+BRFSS_ex<-BRFSS_ex[which(BRFSS_ex$age_cat!="Don't know/refused/missing"),]
+```
+
+```{r}
+Complete_case<-lm(chl~age +bmi, data=nhanes)
+summary(Complete_case)
+
+#calculate and print ORs and 95% CIs  
+ORmodel<-exp(cbind(OR = coef(age_catsexbmiLogit), confint(age_catsexbmiLogit))) 
+#calculate ORs and 95% CIs
+  ORmodel #print ORs and 95% CIs
+
+library(odds.n.ends)
+odds.n.ends(age_catsexbmiLogit) 
+```
+
+
+** Test Assumptions -HERE: DON'T THINK WE NEED TO TEST ANY ASSUMPTIONS COZ ALL PREDICTORS ARE CATEGORICAL..MAYBE TOLERANCE AND/OR VIFF**
+
+
+##  6. Determine TOP 5 influential observations using a Cook's Distance plot
+
+```{r}
+plot(age_catsexbmiLogit, which=4, id.n=5, col="red", cex.id=0.60) 
+
+#identify observations with a Cook's D greater than 0.0004 
+y<-as.data.frame(cooks.distance(age_catsexbmiLogit))
+colnames(y)[1]<-"CD"
+y$obs_no<-rownames(y)
+z<-y[which(y$CD>0.0004),]
+z$obs_no
+```
+
+
+##  7. Exclude the top 5 influential observations and compare Betas between 
+##     models with and without these observations.
+
+```{r}
+#car library needed for compareCoefs (notice the Camelcase!)
+#dropping obs with CD>0.0004
+age_catsexbmiLogit.modex <- update(age_catsexbmiLogit,subset=c(-8238, -13764, 
+                                                               -23620, -28671, 
+                                                               -38347))
+#compare coefficients between models with and without influential observations, 
+#caveat model number of observations is not the same
+compareCoefs(age_catsexbmiLogit, age_catsexbmiLogit.modex) 
+```
+
+
+##  8. Interpret your results in one paragraph.
+
+```{r}
+#     The model including bmi, age categories and sex was significantly better
+#     than the baseline, indicating there is a significant model to predict the
+#     probability of always wearing a seatbelt (??2(14)=831.22; p<.05). People 
+#     who fall within age categories 30 to 34 (OR=1.428; 95% CI=1.205 - 1.694),
+#     35 to 39 (OR=1.687; 95% CI=1.424 - 2.002),
+#     40 to 44 (OR=1.915; 95% CI=1.605 - 2.289),
+#     45 to 49 (OR=2.035; 95% CI=1.719 - 2.410),
+#     50 to 54 (OR=1.961; 95% CI=1.674 - 2.299),
+#     55 to 59 (OR=1.803; 95% CI=1.553 - 2.092),
+#     60 to 64 (OR=2.043; 95% CI=1.759 - 2.372),
+#     65 to 69 (OR=2.361; 95% CI=2.026 - 2.752),
+#     70 to 74 (OR=2.172; 95% CI=1.855 - 2.544),
+#     75 to 79 (OR=2.453; 95% CI=2.050 - 2.941),
+#     and 80 or older (OR= 2.534; 95% CI=2.130 - 3.021) have greater odds of
+#     always using a seatbelt than people in the 18 to 24 age category even
+#     after controlling for BMI and sex.Men have 45.23% lower odds of always
+#     using a seatbelt than women even after controlling for age categories and
+#     BMI (OR= 0.547; 95% CI=0.513 - 0.585). Finally, for every additional unit
+#     of BMI, there is an approximately 1% decrease in the odds of always using
+#     a seatbelt (OR= 0.963; 95% CI= 0.959 - 0.968) even after controlling for
+#     age categories and sex.
+```
+
+##       a. Determine the number of always seatbelt wearers vs. never/sometimes/
+##          always seatbelt wearers predicted by your model.
+```{r}
+xt <- addmargins(table(round(predict(age_catsexbmiLogit, type="response")), 
+                       age_catsexbmiLogit$model$seatbelt_binary))
+  xt
+```
+
+##       b. From these numbers (and the actual data) calculate and report the 
+##          sensitivity and specificity of your model.
+```{r}
+#Sensitivity
+33531/33532
+#Specificity
+1/4265
+#Total predicted correctly
+33532/35590
+
+# ANSWER: -SENSITIVITY: 0.9999702
+#         -SPECIFICITY: 0.0002344666
+```
+
+##       c. Is this a good model?
+```{r}
+#Log Likelihood for full model
+logLik(age_catsexbmiLogit)
+
+#compare models with just bmi to that with bmi, age_cat and sex using LR test
+lrtest(bmiLogit, age_catsexbmiLogit)
+
+# ANSWER: YES, THE FULL MODEL HAS A SMALLER "LACK OF FIT" THAN THE MODEL WITH A 
+#         SINGLE PREDICTOR (BMI)
+```
+
+
+
+
