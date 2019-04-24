@@ -1,0 +1,456 @@
+---
+title: "Final Project"
+output: html_notebook
+---
+
+```{r}
+# PROLOG   ####################################################################'
+
+
+# PROJECT: FINAL PROJECT
+# PURPOSE: ANALYZE THE ASSOCIATION BETWEEN CONVENTIONAL CIGARETTE SMOKING AND VAPING.
+# DATA:    YRBSS 2017
+# AUTHORS: RUTH KATUMBA, VIANCA CUEVAS SOULETTE AND DAMILOLA SHOBIYE.
+# CREATED: 04/10/19
+# LATEST:  04/23/19
+# NOTES:   for Advanced Data Analysis class 
+
+
+# PROLOG  ######################################################################
+```
+
+## STEP 1: Load the libraries we'll need. 
+
+```{r}
+library(foreign) #for reading spss (read.spss()), stata (read.dta()) and xpt (read.xport()) files
+library(haven) #for reading SPSS (read_sav()), stata (read_dta()), SAS(read_sas()) and xpt (read_xpt()) files
+library(readr) #for reading csv file (read_csv())
+library(knitr) #for creating nicer tables
+library(plyr)
+library(ggplot2)
+library(tidyverse)
+library(car)
+library(DescTools)
+library(lmtest) #for LR test
+library(VIM) 
+library(mice) 
+library(lattice)
+library(odds.n.ends)
+```
+
+
+## STEP 2: Load the data.
+
+```{r}
+FinalProject_csv <- read_csv("https://raw.githubusercontent.com/Dammiesho/ADA-Group-Project/master/Variable_Interest3_YRBS_17%20FINAL.csv?token=ALCYJ5SRQMSJECNTPKNHQQS4X7U5I")
+```
+
+
+## STEP 3: Rename the variables. 
+
+```{r}
+names(FinalProject_csv)<-c("age", "sex", "grade_level", "race", "cig_use", "vap_yn", "vap_cat", "bingedrink", "mari_use", "coke_use", "heroin_use", "meth_use", "ecstasy", "gender", "grades") #renames variables in order of appearance
+kable(summary(FinalProject_csv)) #creates 'nice' looking table of summary stats for each variable. Alternatively, use varlist<-colnames (C1Survey_csv)
+```
+
+
+## STEP 4: Classify the variables as factors. 
+
+```{r}
+# Classify categorical variables as factor variables
+FinalProject_csv$age<-as.factor(as.character(FinalProject_csv$age))
+FinalProject_csv$sex<-as.factor(as.character(FinalProject_csv$sex))
+FinalProject_csv$grade_level<-as.factor(as.character(FinalProject_csv$grade_level))
+FinalProject_csv$race<-as.factor(as.character(FinalProject_csv$race))
+FinalProject_csv$cig_use<-as.factor(as.character(FinalProject_csv$cig_use))
+FinalProject_csv$vap_yn<-as.factor(as.character(FinalProject_csv$vap_yn))
+FinalProject_csv$vap_cat<-as.factor(as.character(FinalProject_csv$vap_cat))
+FinalProject_csv$bingedrink<-as.factor(as.character(FinalProject_csv$bingedrink))
+FinalProject_csv$mari_use<-as.factor(as.character(FinalProject_csv$mari_use))
+FinalProject_csv$coke_use<-as.factor(as.character(FinalProject_csv$coke_use))
+FinalProject_csv$heroin_use<-as.factor(as.character(FinalProject_csv$heroin_use))
+FinalProject_csv$meth_use<-as.factor(as.character(FinalProject_csv$meth_use))
+FinalProject_csv$ecstasy<-as.factor(as.character(FinalProject_csv$ecstasy))
+FinalProject_csv$gender<-as.factor(as.character(FinalProject_csv$gender))
+FinalProject_csv$grades<-as.factor(as.character(FinalProject_csv$grades))
+
+# Check that you have the right number of factor variables
+table(sapply(FinalProject_csv, class))
+
+# Check one variable to comfirm missing data
+table(FinalProject_csv$age)
+```
+
+
+## STEP 5: Rename categories.
+
+```{r}
+# Rename categories within variables
+FinalProject_csv$age[FinalProject_csv$age <= 1] <- 1 
+FinalProject_csv$race[FinalProject_csv$race <= 3] <- 2
+
+## Recode age variable 
+table(FinalProject_csv$age)
+FinalProject_csv$agef<-factor(FinalProject_csv$age, levels = c(1,2,3), labels = c("12 years old or younger", "13 to 17 year-olds", "18 years old or older"))
+table(FinalProject_csv$agef)
+
+table(FinalProject_csv$sex)
+FinalProject_csv$sexf<-factor(FinalProject_csv$sex, levels = c(1,2), labels = c("Female", "Male"))
+table(FinalProject_csv$sexf)
+
+table(FinalProject_csv$grade_level)
+FinalProject_csv$grade_levelf<-factor(FinalProject_csv$grade_level, levels = c(1,2,3,4,5), labels = c("9th grade", "10th grade", "11th grade", "12th grade", "Unknown"))
+table(FinalProject_csv$grade_levelf)
+
+## Recode race into 3 categories then continue renaming
+FinalProject_csv$race[FinalProject_csv$race <= 1] <- 1 
+FinalProject_csv$race[FinalProject_csv$race <= 3] <- 2
+FinalProject_csv$race[FinalProject_csv$race <= 2 | FinalProject_csv$race <= 4 | FinalProject_csv$race <= 5 | FinalProject_csv$race <= 2 | FinalProject_csv$race <= "F" | FinalProject_csv$race <= "1F" | FinalProject_csv$race <= "5 F" | FinalProject_csv$race <= "1 G" | FinalProject_csv$race <= "H" | FinalProject_csv$race <= "2  H"] <- 3 
+
+table(FinalProject_csv$race)
+FinalProject_csv$racef<-factor(FinalProject_csv$race, levels = c(1,2,3), labels = c("White", "Black or African American", "Other races"))
+table(FinalProject_csv$racef)
+
+table(FinalProject_csv$cig_use)
+FinalProject_csv$cig_usef<-factor(FinalProject_csv$cig_use, levels = c(1,2,3), labels = c("Non-smoker", "Non-daily/Intermittent smoker", "Daily smoker" ))
+table(FinalProject_csv$cig_usef)
+
+table(FinalProject_csv$vap_yn)
+FinalProject_csv$vap_ynf<-factor(FinalProject_csv$vap_yn, levels = c(0,1), labels = c("No", "Yes"))
+table(FinalProject_csv$vap_ynf)
+
+table(FinalProject_csv$bingedrink)
+FinalProject_csv$bingedrinkf<-factor(FinalProject_csv$bingedrink, levels = c(1,2,3), labels = c("Non-binge drinker", "Intermittent binge drinker", "Regular binge drinker"))
+table(FinalProject_csv$bingedrinkf)
+
+table(FinalProject_csv$mari_use)
+FinalProject_csv$mari_usef<-factor(FinalProject_csv$mari_use, levels = c(1,2,3,4), labels = c("No marijuana use", "Light marijuana use", "Regular marijuana use", "Chronic marijuana use" ))
+table(FinalProject_csv$mari_usef)
+
+table(FinalProject_csv$coke_use)
+FinalProject_csv$coke_usef<-factor(FinalProject_csv$coke_use, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$coke_usef)
+
+table(FinalProject_csv$heroin_use)
+FinalProject_csv$heroin_usef<-factor(FinalProject_csv$heroin_use, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$heroin_usef)
+
+table(FinalProject_csv$meth_use)
+FinalProject_csv$meth_usef<-factor(FinalProject_csv$meth_use, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$meth_usef)
+
+table(FinalProject_csv$ecstasy)
+FinalProject_csv$ecstasyf<-factor(FinalProject_csv$ecstasy, levels = c(1,2), labels = c("No", "Yes"))
+table(FinalProject_csv$ecstasyf)
+
+table(FinalProject_csv$gender)
+FinalProject_csv$genderf<-factor(FinalProject_csv$gender, levels = c(1,2,3,4), labels = c("Heterosexual", "Gay or Lesbian", "Bisexual", "Not sure"))
+table(FinalProject_csv$genderf)
+
+## Recode grades into 4 categories
+FinalProject_csv$grades[FinalProject_csv$grades <= 1] <- 1 
+FinalProject_csv$grades[FinalProject_csv$grades <= 2] <- 2
+FinalProject_csv$grades[FinalProject_csv$grades <= 3] <- 3
+FinalProject_csv$grades[FinalProject_csv$grades <= 4 | FinalProject_csv$grades <= 5 | FinalProject_csv$grades <= 6 | FinalProject_csv$grades <= 7 ] <- 4 
+
+table(FinalProject_csv$grades)
+FinalProject_csv$gradesf<-factor(FinalProject_csv$grades, levels = c(1,2,3,4), labels = c("Mostly A's", "Mostly B's", "Mostly C's", "Other grades"))
+table(FinalProject_csv$gradesf)
+```
+
+
+## STEP 6: Execute imputation to deal with missing data.
+```{r}
+# Data Imputation
+imp<-mice(FinalProject_csv, m=5, seed = 1000) #m = number of imputations, 5 is the default. If you don't include the m argument, 5 imputations will be done.
+
+##look at imputation details. 
+imp
+```
+
+
+## STEP 7: Run diagnostics for imputation model: Are the imputed values plausible? 
+```{r}
+#check age
+imp$imp$age #imp$imp refers to dataframe and list called imp within dataframe that has 15 items 
+#check sex
+imp$imp$sex
+#check grade_level
+imp$imp$grade_level
+#check race
+imp$imp$race
+#check cig-use
+imp$imp$cig_use 
+#check vap_yn
+imp$imp$vap_yn
+#check vap_cat
+imp$imp$vap_cat
+#check bingedrink
+imp$imp$bingedrink
+#check mari_use
+imp$imp$mari_use 
+#check coke_use
+imp$imp$coke_use
+#check heroin_use
+imp$imp$heroin_use
+#check meth_use
+imp$imp$meth_use
+#check ecstasy
+imp$imp$ecstasy 
+#check gender
+imp$imp$gender
+#check grades
+imp$imp$grades
+#the rows contain the imputed values and the columns are the multiple imputations
+```
+
+
+## STEP 7: Obtain the first and second complete datasets for review.
+```{r}
+complete(imp)
+complete(imp,2)
+```
+
+
+## STEP 8: Create a complete dataset.
+```{r}
+Complete <- na.omit(FinalProject_csv)
+```
+
+## Calculate the proportions for Vaping status by sample characteristics.
+
+```{r}
+vap_cig0<-table(Complete$cig_usef, Complete$vap_ynf) #Calculating counts
+vap_cig0
+vap_cig <- prop.table (vap_cig0) #Calculating proportions. 
+vap_cig
+
+vap_sex0<-table(Complete$sexf, Complete$vap_ynf) #Calculating counts
+vap_sex0
+vap_sex <- prop.table (vap_sex0) #Creating table 
+vap_sex
+
+vap_race0<-table(Complete$racef, Complete$vap_ynf) #Calculating counts
+vap_race0
+vap_race <- prop.table (vap_race0) #Creating table 
+vap_race
+
+
+vap_grade0 <-table(Complete$grade_levelf, Complete$vap_ynf) #Calculating counts
+vap_grade0
+vap_grade <- prop.table (vap_grade0) #Creating table 
+vap_grade
+
+
+vap_gender0 <- table(Complete$genderf, Complete$vap_ynf)
+vap_gender0
+vap_gender <- prop.table (vap_gender0) #Creating table 
+vap_gender
+
+
+
+vap_binge0 <- table(Complete$bingedrinkf, Complete$vap_ynf)
+vap_binge0
+vap_binge <- prop.table (vap_binge0) #Creating table 
+vap_binge
+
+
+vap_mari0 <- table(Complete$mari_usef, Complete$vap_ynf)
+vap_mari0
+vap_mari <- prop.table (vap_mari0) #Creating table 
+vap_mari
+
+
+vap_coke0 <- table(Complete$coke_usef, Complete$vap_ynf)
+vap_coke0
+vap_coke <- prop.table (vap_coke0) #Creating table 
+vap_coke
+
+
+vap_ecstasy0 <- table(Complete$ecstasyf, Complete$vap_ynf)
+vap_ecstasy0
+vap_ecstasy <- prop.table (vap_ecstasy0) #Creating table 
+vap_ecstasy
+
+
+vap_meth0 <- table(Complete$meth_usef, Complete$vap_ynf)
+vap_meth0
+vap_meth <- prop.table (vap_meth0) #Creating table 
+vap_meth
+
+
+vap_grades0 <- table(Complete$gradesf, Complete$vap_ynf)
+vap_grades0
+vap_grades <- prop.table (vap_grades0) #Creating table 
+vap_grades
+
+
+vap_her0 <- table(Complete$heroin_usef, Complete$vap_ynf)
+vap_her0
+vap_her <- prop.table (vap_her0) #Creating table 
+vap_her
+```
+
+
+## STEP 9: Run descriptive analysis for complete dataset.
+```{r}
+install.packages("Hmisc") #install package to run descriptive of each variable
+library(Hmisc)
+
+describe(Complete)
+```
+
+
+## STEP 10: Run Univariate Analysis. 
+
+```{r}
+#Association with the outcome 
+VapingCiglog <- glm(vap_ynf ~ cig_usef, data=Complete, family="binomial")
+  summary(VapingCiglog) #Univariate analysis for binge drinking. 
+  
+  odds.n.ends(VapingCiglog)
+  
+VapingBingelog <- glm(vap_ynf ~ bingedrinkf, data=Complete, family="binomial")
+  summary(VapingBingelog) #Univariate analysis for binge drinking. 
+  
+  odds.n.ends(VapingBingelog)
+  
+VapingCoclog <- glm(vap_ynf ~ coke_usef, data=Complete, family="binomial")
+  summary(VapingCoclog) #Univariate analysis for cocaine use.
+  
+  odds.n.ends(VapingCoclog)
+  
+VapingEcstalog <- glm(vap_ynf ~ ecstasyf, data=Complete, family="binomial")
+  summary(VapingEcstalog) #Univariate analysis for ecstasy use.  
+  
+  odds.n.ends(VapingEcstalog)
+  
+VapingGenlog <- glm(vap_ynf ~ genderf, data=Complete, family="binomial")
+  summary(VapingGenlog) #Univariate analysis for gender.
+  
+ chisq.test(Complete$genderf, Complete$vap_yn)
+  
+VapingGradeslog <- glm(vap_ynf ~ gradesf, data=Complete, family="binomial")
+  summary(VapingGradeslog) #Univariate analysis for grades.
+  
+  odds.n.ends(VapingGradeslog)
+  
+VapingMarilog <- glm(vap_ynf ~ mari_usef, data=Complete, family="binomial")
+  summary(VapingMarilog) #Univariate analysis for marijuana use.
+  
+  odds.n.ends(VapingMarilog)
+  
+VapingMethlog <- glm(vap_ynf ~ meth_usef, data=Complete, family="binomial")
+  summary(VapingMethlog) #Univariate analysis for meth use.
+
+  odds.n.ends(VapingMethlog)
+  
+VapingHerlog <- glm(vap_ynf ~ heroin_usef, data=Complete, family="binomial")
+  summary(VapingHerlog) #Univariate analysis for heroin use.
+
+  odds.n.ends(VapingHerlog)
+  
+VapingSexlog <- glm(vap_ynf ~ sexf, data=Complete, family="binomial")
+  summary(VapingSexlog) #Univariate analysis for sex.
+  
+ chisq.test(Complete$sexf, Complete$vap_yn)
+```
+
+
+## STEP 11: Logistic Regression wiht complete cases. 
+
+```{r}
+#First Model Exposure and Outcome 
+Mod0VapCig_use<- glm(vap_ynf ~ cig_usef , data=Complete, family="binomial")
+  summary(Mod0VapCig_use)
+  
+#Second model including sex (not gender) race and age (not grade)
+Mod1SexRaceAge<- glm(vap_ynf ~ sexf + racef + agef + cig_usef, data=Complete, family="binomial")
+  summary(Mod1SexRaceAge) 
+
+#Logistic analysis including sex, race and grade.
+Mod2SexRaceGrade <- glm(vap_ynf ~ sexf + racef + grade_levelf + cig_usef , data=Complete, family="binomial")
+  summary(Mod2SexRaceGrade)
+
+odds.n.ends(Mod2SexRaceGrade)
+
+# Compare Model with Age to Model with grade to determine better variable to use
+lrtest(Mod1SexRaceAge, Mod2SexRaceGrade)
+```
+
+
+## Run Logistic Regression with complete dataset: FINAL MODEL
+```{r}
+CompleteCaseMod<-glm(vap_ynf ~ sexf + racef + grade_levelf + genderf + bingedrinkf + mari_usef + coke_usef + ecstasyf + meth_usef + gradesf + heroin_usef + cig_usef, family="binomial", data= Complete)
+summary(CompleteCaseMod)
+
+# Get ORs and CIs
+odds.n.ends(CompleteCaseMod)
+
+# Get Log Likelihood
+logLik(CompleteCaseMod)
+
+# Compare Final Model to Model with just Cigarette smoking and Vaping
+lrtest(Mod0VapCig_use, CompleteCaseMod)
+```
+
+
+## STEP 12: Run Logistic Regression with Imputed data 
+
+```{r}
+AdjustLogImp <-with(imp, glm(vap_ynf ~ sexf + racef + grade_levelf + genderf + bingedrinkf + mari_usef + coke_usef + ecstasyf + meth_usef + gradesf + heroin_usef + cig_usef, family="binomial" ))#get regression coefficients
+pool(AdjustLogImp) #pool regression coefficients and standard errors 
+
+summary(pool(AdjustLogImp))
+
+ImpSum<-summary(pool(AdjustLogImp)) #Created a variable of the pool imputed data
+```
+
+
+## STEP 13: Calculate odds ratio of imputed data. 
+
+```{r}
+round(summary(pool(AdjustLogImp), conf.int = TRUE, exponentiate = TRUE), 3)
+```
+
+## Make sure to compare ORs for the Imputed Dataset to those for the Complete Dataset
+
+```{r}
+# ORs do not differ much.
+```
+
+
+## STEP 14: Determine TOP 5 influential observations (using Complete Dataset) using a Cook's Distance plot
+
+```{r}
+plot(CompleteCaseMod, which=4, id.n=5, col="red", cex.id=0.60) 
+
+
+help(plot)
+
+#identify observations with a Cook's D greater than 0.0004 
+y<-as.data.frame(cooks.distance(CompleteCaseMod))
+colnames(y)[1]<-"CD"
+y$obs_no<-rownames(y)
+z<-y[which(y$CD>0.0004),]
+z$obs_no
+```
+
+
+## STEP 15: Exclude the top 5 influential observations and compare Betas between models with and without these observations.
+
+```{r}
+#car library needed for compareCoefs (notice the Camelcase!)
+#dropping obs with CD>0.0004
+CompleCase.modex <- update(CompleteCaseMod,subset=c(-1907, -2668, 
+                                                               -3873, -3140, 
+                                                               -4517))
+#compare coefficients between models with and without influential observations, 
+#caveat model number of observations is not the same
+compareCoefs(CompleteCaseMod, CompleCase.modex) 
+
+#Interpretation: after removing the infucential cases the coefficients did not change much. So we can leave them in.
+```
+
+
+
